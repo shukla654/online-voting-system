@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple E - Voting System by sumit </title>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <style>
+    :root {
+      --bg1: #1a2a6c;
+      --bg2: #b21f1f;
+      --bg3: #fdbb2d;
+      --card: rgba(255,255,255,0.15);
+      --accent: #00c3ff;
+      --muted: #dddddd;
+      --ok: #28a745;
+      --danger: #dc3545;
+      --warn: #ffc107;
+      --text: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Poppins", Arial, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+      background-size: 400% 400%;
+      animation: bgMove 10s ease infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes bgMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .wrap {
+      width: 95%;
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: 26px;
+      margin: 0;
+      color: #ffd43b;
+      text-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      color: #fff;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+    }
+    .full { grid-column: 1/-1; }
+
+    input[type=text], input[type=password], select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      color: #222;
+      background: rgba(255,255,255,0.8);
+      font-weight: 500;
+    }
+    button {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s, transform 0.2s;
+    }
+    button:hover {
+      transform: scale(1.05);
+      background: #00a8e8;
+    }
+    button.ghost {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.5);
+      color: #fff;
+    }
+
+    .muted { color: var(--muted); font-size: 13px; }
+
+    .candidate {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: rgba(255,255,255,0.1);
+    }
+    .small { font-size: 13px; }
+
+    .admin-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+    .danger { background: var(--danger); color: white; }
+    .success { background: var(--ok); color: white; }
+    .warn { background: var(--warn); color: black; font-weight: bold; }
+
+    @media (max-width:880px) {
+      .grid { grid-template-columns: 1fr; }
+      .wrap { padding: 12px; }
+    }
+
+    footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    /* face recognition */
+    .face-box {
+      position: relative;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    #video {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+      transform: scaleX(-1);
+    }
+    #faceCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      transform: scaleX(-1);
+    }
+    .face-status {
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      background: rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .face-status.ok   { color: #5eff8f; }
+    .face-status.err  { color: #ff6b6b; }
+    .face-status.info { color: #ffd43b; }
+
+    .capture-dots {
+      display: flex; gap: 6px; justify-content: center; margin: 6px 0;
+    }
+    .capture-dots span {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: background 0.3s;
+    }
+    .capture-dots span.done { background: #5eff8f; }
+    .capture-dots span.active { background: #00c3ff; }
+
+    /* voter photo in admin list */
+    .voter-row { display:flex; align-items:center; gap:8px; }
+    .voter-photo {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(111,66,193,0.8);
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .voter-photo:hover { transform: scale(1.12); }
+
+    /* photo lightbox */
+    #photoModal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #photoModal.open { display: flex; }
+    #photoModal img {
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid rgba(111,66,193,0.9);
+      box-shadow: 0 0 40px rgba(111,66,193,0.5);
+    }
+    .voter-no-photo {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; flex-shrink: 0;
+    }
+    .voter-info { flex:1; font-size:12px; line-height:1.5; min-width:0; overflow:hidden; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🌟 E-Voting System</h1>
+      <div class="muted" id="aiStatus">Loading face AI…</div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT CARD -->
+      <div class="card" id="left">
+
+        <div id="loginPane">
+          <h3>Login / Register</h3>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <select id="roleSelect">
+              <option value="user">User (Voter)</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button id="toRegister" class="ghost">Register Voter</button>
+          </div>
+
+          <div id="userLogin">
+            <div id="faceLoginArea" style="display:none">
+              <div class="face-box">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="faceCanvas"></canvas>
+              </div>
+              <div class="face-status info" id="faceLoginStatus">Initialising…</div>
+              <div style="display:flex;gap:8px;margin-bottom:10px">
+                <button onclick="stopFaceLogin()" class="ghost" style="flex:1">Cancel</button>
+              </div>
+            </div>
+
+            <input id="voterIdInput" type="text" placeholder="Voter ID (e.g. VOTER123)" style="margin-bottom:8px" />
+            <div style="display:flex;gap:8px;margin-bottom:4px">
+              <button id="userLoginBtn" class="success" style="flex:1" onclick="userLoginById()">Login with ID</button>
+              <button onclick="startFaceLogin()" style="flex:1;background:#6f42c1">😊 Face Login</button>
+            </div>
+            <div class="muted">Not registered? Click "Register Voter".</div>
+          </div>
+
+          <div id="adminLogin" style="display:none;margin-top:10px">
+            <input id="adminUser" type="text" placeholder="Admin username" value="admin" style="margin-bottom:8px"/>
+            <input id="adminPass" type="password" placeholder="Admin password" style="margin-bottom:8px"/>
+            <button id="adminLoginBtn" class="warn" onclick="adminLogin()" style="width:100%">Login as Admin</button>
+            <div class="muted" style="margin-top:8px">Default: <strong>admin</strong> / <strong>admin123</strong></div>
+          </div>
+        </div>
+
+        <!-- Register pane -->
+        <div id="registerPane" style="display:none">
+          <h3>Register Voter</h3>
+          <input id="regName" type="text" placeholder="Full Name" style="margin-bottom:8px"/>
+          <input id="regId"   type="text" placeholder="Voter ID (unique)" style="margin-bottom:8px"/>
+
+          <div style="margin-bottom:10px">
+            <div style="font-size:13px;margin-bottom:6px;color:#ffd43b">😊 Enroll Face (optional — for face login)</div>
+            <div id="enrollCamArea" style="display:none">
+              <div class="face-box">
+                <video id="videoEnroll" autoplay muted playsinline></video>
+              </div>
+              <div class="face-status info" id="enrollStatus">Look at the camera…</div>
+              <div class="capture-dots" id="captureDots"></div>
+              <button onclick="stopEnroll()" class="ghost" style="width:100%;margin-bottom:8px">Cancel</button>
+            </div>
+            <button onclick="startEnroll()" id="enrollBtn" style="width:100%;background:#6f42c1">📷 Start Face Enroll</button>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button id="registerBtn" class="success" style="flex:1" onclick="registerVoter()">Register</button>
+            <button id="backToLogin" class="ghost" onclick="goLogin()">Back</button>
+          </div>
+          <div id="regMsg" class="muted" style="margin-top:8px"></div>
+        </div>
+
+        <hr style="margin:16px 0;border:none;border-top:1px solid rgba(255,255,255,0.2)" />
+
+        <!-- Voting pane -->
+        <div id="votingPane" style="display:none">
+          <h3>Cast Your Vote <span class="muted" id="loggedInName"></span></h3>
+          <div id="candidatesList"></div>
+          <div style="height:8px"></div>
+          <button id="castVoteBtn" class="success" onclick="castVote()">Submit Vote</button>
+          <button onclick="logout()" class="ghost" style="margin-left:8px">Logout</button>
+          <div id="voteMsg" class="muted" style="margin-top:8px"></div>
+        </div>
+
+        <!-- Admin quick actions -->
+        <div id="adminPaneLeft" style="display:none">
+          <h3>Admin Quick Actions</h3>
+          <div class="admin-tools">
+            <button onclick="openAdminPanel()">Open Admin Panel</button>
+            <button onclick="logout()" class="danger">Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT CARD -->
+      <div class="card" id="right">
+        <div id="adminPanel" style="display:none">
+          <h3>Admin Panel</h3>
+
+          <label class="muted small">Add candidate</label>
+          <div style="display:flex;gap:8px;margin:6px 0 12px">
+            <input id="newCandidateInput" type="text" placeholder="Candidate name" />
+            <button onclick="addCandidate()">Add</button>
+          </div>
+
+          <label class="muted small">Candidates</label>
+          <div id="adminCandidates"></div>
+
+          <div style="margin-top:14px">
+            <label class="muted small">Results</label>
+            <div id="resultsList" style="margin-top:8px"></div>
+            <div style="height:8px"></div>
+            <button onclick="resetVotes()" class="danger">Reset Votes</button>
+            <button onclick="exportResults()" class="ghost">Export Results</button>
+            <button onclick="changeAdminPass()" class="warn" style="margin-top:6px">Change Admin Password</button>
+          </div>
+
+          <div style="margin-top:12px">
+            <label class="muted small">Voters</label>
+            <div id="votersList" style="margin-top:8px;max-height:260px;overflow:auto;background:rgba(255,255,255,0.1);padding:8px;border-radius:8px"></div>
+          </div>
+        </div>
+
+        <div id="publicInfo">
+          <h3>System Info</h3>
+          <p class="muted">PROJECT BY SUMIT SHUKLA .</p>
+          <ul class="muted small" style="margin-top:8px;padding-left:18px">
+            <li>Register with a unique Voter ID. Optionally enroll your face.</li>
+            <li>Login by ID <strong>or</strong> by face scan.</li>
+            <li>Each voter may vote once.</li>
+            <li>Admin can manage candidates, voters, and results.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <footer>Made for demo purposes. Not for real elections.</footer>
+  </div>
+
+  <!-- face photo lightbox -->
+  <div id="photoModal" onclick="this.classList.remove('open')">
+    <img id="photoModalImg" src="" alt="Voter face">
+  </div>
+
+<script>
+const $ = id => document.getElementById(id);
+function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+function load(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch{ return f; } }
+
+if(!load('admin',null)) save('admin',{username:'admin',password:'admin123'});
+if(!load('candidates',null)){
+  const c=[{id:'c1',name:'Candidate A'},{id:'c2',name:'Candidate B'}];
+  save('candidates',c);
+  const v={}; c.forEach(x=>v[x.id]=0); save('votes',v);
+}
+if(!load('voters',null)) save('voters',[]);
+
+let currentUser=null;
+let faceStream=null, enrollStream=null;
+let modelsReady=false;
+let faceLoginLoop=null;
+let enrollDescriptors=[], enrollLoop=null, lastEnrollTime=0;
+let enrollPhotoDataUrl=null;
+const ENROLL_NEEDED=5, THRESHOLD=0.5;
+
+// ── load models ──────────────────────────────────────────────
+const MODEL_URLS=[
+  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights',
+  'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'
+];
+async function loadModels(){
+  for(const url of MODEL_URLS){
+    try{
+      $('aiStatus').textContent='⏳ Loading face AI…';
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(url),
+        faceapi.nets.faceLandmark68TinyNet.loadFromUri(url),
+        faceapi.nets.faceRecognitionNet.loadFromUri(url),
+      ]);
+      modelsReady=true;
+      $('aiStatus').textContent='😊 Face AI ready';
+      return;
+    } catch(e){ console.warn('Model source failed:',url,e); }
+  }
+  $('aiStatus').textContent='⚠ ID-only mode (face AI unavailable)';
+}
+window.addEventListener('load', loadModels);
+
+// ── role select ──────────────────────────────────────────────
+$('roleSelect').addEventListener('change',()=>{
+  $('adminLogin').style.display=$('roleSelect').value==='admin'?'block':'none';
+  $('userLogin').style.display=$('roleSelect').value==='user'?'block':'none';
+});
+$('toRegister').onclick=()=>{ $('loginPane').style.display='none'; $('registerPane').style.display='block'; };
+function goLogin(){ $('registerPane').style.display='none'; $('loginPane').style.display='block'; stopEnroll(); }
+
+// ── ID login ─────────────────────────────────────────────────
+function userLoginById(){
+  const id=$('voterIdInput').value.trim();
+  const v=load('voters',[]).find(x=>x.id===id);
+  if(!v) return alert('❌ Not registered');
+  doLogin(v);
+}
+
+// ── Face login ───────────────────────────────────────────────
+async function startFaceLogin(){
+  if(!modelsReady) return alert('Face AI is still loading. Please wait a moment and try again, or use ID login.');
+  const enrolled=load('voters',[]).filter(v=>v.faceDesc&&v.faceDesc.length>0);
+  if(!enrolled.length) return alert('No voters have enrolled a face yet.');
+  try{
+    faceStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+    $('video').srcObject=faceStream;
+    await $('video').play();
+    $('faceLoginArea').style.display='block';
+    $('faceLoginStatus').className='face-status info';
+    $('faceLoginStatus').textContent='Look at the camera…';
+    let consecutive=0, attempts=0;
+    faceLoginLoop=setInterval(async()=>{
+      if(!modelsReady||!faceStream) return;
+      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5});
+      const det=await faceapi.detectSingleFace($('video'),opts).withFaceLandmarks(true).withFaceDescriptor();
+      const c=$('faceCanvas'); c.width=$('video').videoWidth||320; c.height=$('video').videoHeight||240;
+      const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+      if(det){ const b=det.detection.box; ctx.strokeStyle='#5eff8f'; ctx.lineWidth=2; ctx.strokeRect(b.x,b.y,b.width,b.height); }
+      if(!det){ consecutive=0; return; }
+      const voters=load('voters',[]); let best=null, bestDist=Infinity;
+      for(const vt of voters){
+        if(!vt.faceDesc||!vt.faceDesc.length) continue;
+        for(const d of vt.faceDesc){
+          const dist=faceapi.euclideanDistance(det.descriptor,new Float32Array(d));
+          if(dist<bestDist){ bestDist=dist; best=vt; }
+        }
+      }
+      if(bestDist<THRESHOLD&&best){
+        consecutive++;
+        $('faceLoginStatus').className='face-status ok';
+        $('faceLoginStatus').textContent=`Matched: ${best.name} (${Math.round((1-bestDist/0.8)*100)}%)`;
+        if(consecutive>=3){ stopFaceLogin(); doLogin(best); }
+      } else {
+        consecutive=0; attempts++;
+        $('faceLoginStatus').className='face-status info';
+        $('faceLoginStatus').textContent='Scanning… keep looking at camera';
+        if(attempts>40){ stopFaceLogin(); alert('Face not recognised. Try ID login.'); }
+      }
+    },350);
+  } catch(e){ alert('Camera access denied.'); }
+}
+
+function stopFaceLogin(){
+  clearInterval(faceLoginLoop); faceLoginLoop=null;
+  if(faceStream){ faceStream.getTracks().forEach(t=>t.stop()); faceStream=null; }
+  $('video').srcObject=null;
+  $('faceLoginArea').style.display='none';
+}
+
+// ── Face enroll ──────────────────────────────────────────────
+// capture a small 80x80 snapshot from the video (mirrored to match display)
+function capturePhoto(videoEl){
+  const c=document.createElement('canvas'); c.width=80; c.height=80;
+  const ctx=c.getContext('2d');
+  ctx.translate(80,0); ctx.scale(-1,1);
+  ctx.drawImage(videoEl,0,0,80,80);
+  return c.toDataURL('image/jpeg',0.65);
+}
+
+async function startEnroll(){
+  if(!modelsReady) return alert('Face AI is still loading. Please wait a moment and try again.');
+  try{
+    enrollStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+    $('videoEnroll').srcObject=enrollStream;
+    await $('videoEnroll').play();
+    enrollDescriptors=[]; enrollPhotoDataUrl=null;
+    $('enrollCamArea').style.display='block';
+    $('enrollBtn').style.display='none';
+    $('enrollStatus').className='face-status info';
+    $('enrollStatus').textContent='Look at the camera…';
+    $('captureDots').innerHTML=Array.from({length:ENROLL_NEEDED},(_,i)=>`<span id="ed${i}"></span>`).join('');
+    $('captureDots').children[0].className='active';
+    lastEnrollTime=0;
+    enrollLoop=setInterval(async()=>{
+      if(enrollDescriptors.length>=ENROLL_NEEDED) return;
+      const now=Date.now(); if(now-lastEnrollTime<700) return; lastEnrollTime=now;
+      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:0.5});
+      const det=await faceapi.detectSingleFace($('videoEnroll'),opts).withFaceLandmarks(true).withFaceDescriptor();
+      if(!det) return;
+      // take photo on the first successful detection
+      if(enrollDescriptors.length===0) enrollPhotoDataUrl=capturePhoto($('videoEnroll'));
+      enrollDescriptors.push(Array.from(det.descriptor));
+      const n=enrollDescriptors.length;
+      for(let i=0;i<ENROLL_NEEDED;i++) $('ed'+i).className=i<n?'done':i===n?'active':'';
+      $('enrollStatus').textContent=`Captured ${n}/${ENROLL_NEEDED}`;
+      if(n>=ENROLL_NEEDED){
+        clearInterval(enrollLoop);
+        $('enrollStatus').className='face-status ok';
+        $('enrollStatus').textContent=`✅ Face enrolled (${ENROLL_NEEDED} samples)`;
+        stopEnrollCam();
+      }
+    },200);
+  } catch(e){ alert('Camera access denied.'); }
+}
+
+function stopEnrollCam(){
+  if(enrollStream){ enrollStream.getTracks().forEach(t=>t.stop()); enrollStream=null; }
+}
+function stopEnroll(){
+  clearInterval(enrollLoop); enrollLoop=null; stopEnrollCam();
+  $('enrollCamArea').style.display='none';
+  $('enrollBtn').style.display='block';
+  enrollDescriptors=[]; enrollPhotoDataUrl=null;
+  $('captureDots').innerHTML='';
+}
+
+// ── register ─────────────────────────────────────────────────
+function registerVoter(){
+  const n=$('regName').value.trim(), id=$('regId').value.trim();
+  if(!n||!id) return $('regMsg').innerText='❌ Fill all fields';
+  const voters=load('voters',[]);
+  if(voters.find(x=>x.id===id)) return $('regMsg').innerText='❌ ID already taken';
+  voters.push({
+    id, name:n, votedFor:null,
+    faceDesc: enrollDescriptors.length ? enrollDescriptors : [],
+    facePhoto: enrollPhotoDataUrl || null   // ← saved photo for admin panel
+  });
+  save('voters',voters);
+  $('regMsg').innerText=`✅ Registered${enrollDescriptors.length?' with face':''}. Now login.`;
+  $('regName').value=''; $('regId').value='';
+  stopEnroll();
+}
+
+// ── login / logout ───────────────────────────────────────────
+function doLogin(voter){
+  currentUser=Object.assign({},voter);
+  $('loginPane').style.display='none';
+  $('votingPane').style.display='block';
+  $('loggedInName').textContent='('+currentUser.name+')';
+  renderCandidates();
+  if(currentUser.votedFor){
+    $('voteMsg').innerText='✅ Already voted for: '+getCandName(currentUser.votedFor);
+    $('castVoteBtn').disabled=true;
+  } else { $('voteMsg').innerText=''; $('castVoteBtn').disabled=false; }
+}
+function logout(){
+  currentUser=null; stopFaceLogin();
+  $('votingPane').style.display='none';
+  $('adminPaneLeft').style.display='none';
+  $('adminPanel').style.display='none';
+  $('publicInfo').style.display='block';
+  $('loginPane').style.display='block';
+  $('voterIdInput').value='';
+}
+
+// ── voting ───────────────────────────────────────────────────
+function renderCandidates(){
+  $('candidatesList').innerHTML='';
+  load('candidates',[]).forEach(x=>{
+    const d=document.createElement('div'); d.className='candidate';
+    d.innerHTML=`<label><input type="radio" name="cand" value="${x.id}"> ${x.name}</label>`;
+    $('candidatesList').appendChild(d);
+  });
+}
+function castVote(){
+  const sel=document.querySelector('input[name=cand]:checked');
+  if(!sel) return alert('❌ Pick a candidate');
+  const votes=load('votes',{}); votes[sel.value]=(votes[sel.value]||0)+1; save('votes',votes);
+  currentUser.votedFor=sel.value;
+  const voters=load('voters',[]).map(x=>x.id===currentUser.id?currentUser:x); save('voters',voters);
+  $('voteMsg').innerText='✅ Vote submitted!';
+  $('castVoteBtn').disabled=true;
+  alert('🎉 Your vote has been recorded!');
+  setTimeout(logout,1000);
+}
+
+// ── admin ────────────────────────────────────────────────────
+function adminLogin(){
+  const u=$('adminUser').value, p=$('adminPass').value, a=load('admin',{});
+  if(u===a.username&&p===a.password){ currentUser={admin:true}; $('loginPane').style.display='none'; $('adminPaneLeft').style.display='block'; }
+  else alert('❌ Wrong admin login');
+}
+function openAdminPanel(){
+  $('adminPanel').style.display='block'; $('publicInfo').style.display='none'; renderAdmin();
+}
+
+function renderAdmin(){
+  const c=load('candidates',[]), v=load('votes',{});
+  $('adminCandidates').innerHTML='';
+  $('resultsList').innerHTML='';
+  $('votersList').innerHTML='';
+
+  c.forEach(x=>{
+    const r=document.createElement('div'); r.className='candidate';
+    r.innerHTML=`<span>${x.name}</span><button class="danger small" onclick="deleteCandidate('${x.id}')">🗑️ Delete</button>`;
+    $('adminCandidates').appendChild(r);
+    const rv=document.createElement('div'); rv.className='candidate';
+    rv.textContent=`${x.name}: ${v[x.id]||0} votes`;
+    $('resultsList').appendChild(rv);
+  });
+
+  load('voters',[]).forEach(x=>{
+    const row=document.createElement('div');
+    row.className='candidate';
+    row.style.gap='8px';
+
+    // face photo or placeholder icon
+    const photoEl = x.facePhoto
+      ? `<img src="${x.facePhoto}" class="voter-photo" title="Click to enlarge" onclick="openPhoto(this.src)">`
+      : `<div class="voter-no-photo" title="No face enrolled">👤</div>`;
+
+    const votedText = x.votedFor
+      ? `<span style="color:#5eff8f">✅ ${getCandName(x.votedFor)}</span>`
+      : `<span style="color:#aaa">Not Voted</span>`;
+
+    row.innerHTML=`
+      ${photoEl}
+      <div class="voter-info">
+        <strong>${x.name}</strong>
+        <span style="color:#bbb;font-size:11px"> (${x.id})</span><br>
+        ${votedText}
+      </div>
+      <button class="danger small" onclick="deleteVoter('${x.id}')">🗑️</button>`;
+    $('votersList').appendChild(row);
+  });
+}
+
+function addCandidate(){
+  const name=$('newCandidateInput').value.trim(); if(!name) return;
+  const c=load('candidates',[]), id='c'+Date.now(); c.push({id,name}); save('candidates',c);
+  const v=load('votes',{}); v[id]=0; save('votes',v);
+  $('newCandidateInput').value=''; renderAdmin(); renderCandidates();
+}
+function deleteCandidate(id){
+  if(!confirm('Delete candidate?')) return;
+  save('candidates',load('candidates',[]).filter(x=>x.id!==id));
+  const v=load('votes',{}); delete v[id]; save('votes',v);
+  save('voters',load('voters',[]).map(x=>x.votedFor===id?{...x,votedFor:null}:x));
+  renderAdmin();
+}
+function deleteVoter(id){
+  if(!confirm('Delete voter?')) return;
+  const voters=load('voters',[]);
+  const vt=voters.find(x=>x.id===id);
+  if(vt&&vt.votedFor){ const v=load('votes',{}); if(v[vt.votedFor]>0) v[vt.votedFor]--; save('votes',v); }
+  save('voters',voters.filter(x=>x.id!==id)); renderAdmin();
+}
+function resetVotes(){
+  if(!confirm('Reset all votes?')) return;
+  const c=load('candidates',[]), v={}; c.forEach(x=>v[x.id]=0); save('votes',v);
+  save('voters',load('voters',[]).map(v=>({...v,votedFor:null}))); renderAdmin();
+}
+function exportResults(){
+  const blob=new Blob([JSON.stringify({candidates:load('candidates',[]),votes:load('votes',{}),voters:load('voters',[])},null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='results.json'; a.click();
+}
+function changeAdminPass(){
+  const p=prompt('New admin password:'); if(!p) return;
+  const a=load('admin',{}); a.password=p; save('admin',a); alert('✅ Password changed.');
+}
+function getCandName(id){ return (load('candidates',[]).find(x=>x.id===id)||{}).name||'Unknown'; }
+function openPhoto(src){ $('photoModalImg').src=src; $('photoModal').classList.add('open'); }
+</script>
+</body>
+</html>
